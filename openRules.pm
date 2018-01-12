@@ -41,6 +41,7 @@ sub readConfig {
 }
 
 sub getSrcRules {
+  my $line = "";
   print "reading Rules Set\n";
   open(FH,'<',$sources) || handle_error();  # typical open call
   while (defined($line = <FH>)) {
@@ -229,6 +230,7 @@ sub getNodeMap {
 sub getMapNodes {
   my $map = shift;
   my $maps = "";
+  my $line = "";
   print "get map nodes: map UUID\n";
   open(FH,'<',$mapsandnodes) || handle_error();
   while (defined($line = <FH>)) {
