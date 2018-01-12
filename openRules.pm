@@ -226,9 +226,20 @@ sub getNodeMap {
 }
 
 sub getMapNodes {
+  my $map = shift;
+  my $maps = "";
   print "get map nodes: map UUID\n";
-  my $nodes = ""; #read all nodes related to a MAP from mapsandnodes
-  return $nodes;
+  open(FH,'<',$mapsandnodes) || handle_error();
+  while (defined($line = <FH>)) {
+    chomp($line);
+    if $line =~ /$map/ {
+      my $maphash = fromJson ($line);
+      push (@maps,%maphash->{"map"});
+      last;
+    }
+  }
+  close(FH);
+  return $maps;
 }
 
 sub getNodeIp {
@@ -239,9 +250,9 @@ sub getNodeIp {
   open(FH,'<',$nodes) || handle_error();
   while (defined($line = <FH>)) {
     chomp($line);
-    if $line = /$node/ {
+    if $line =~ /$node/ {
       my $nodehash = fromJson ($line);
-      $nodeIP = %nodehash->{"ip"}; # parse line and optain IP
+      $nodeIP = %nodehash->{"ip"};
       last;
     }
   }
@@ -256,6 +267,13 @@ sub sendMapToNode {
   my $nodeIp = getNodeIp ($node);
   # TODO This should be done by API no openRules. sendFileToNode(file,ip);
   my $cmd = `scp $node$map.tar.gz $user@$nodeIp:/var/owlhnode/etc/$node$map.tar.gz`;
+}
+
+sub restartNode {
+  $node = shift;
+  print "restart NODE IDS\n";
+  # TODO must be done from API.
+  my $cmd = `ssh $user@$nodeip "touch /var/owlhnode/etc/restartIDS"`;
 }
 
 sub syncNodeMap {
