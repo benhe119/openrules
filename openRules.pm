@@ -58,7 +58,7 @@ sub createMap {
   my $name = shift;
   print "Create Map: name, UUID\n";
   my $mapuuid = generateUUID();
-  my %maphash = ('name' => $name , 'uuid' => $mapuuid);
+  my %maphash = ("name" => '"'.$name.'"' , "uuid" => '"'.$mapuuid.'"');
   my $jsonname = toJson(\%maphash);
   writeToMapFile($jsonname);
   my $response = `mkdir $mapspath$mapuuid; cp -r $mapspath$mainrulespath* $mapspath$mapuuid/.`;
@@ -70,9 +70,16 @@ sub deleteMap {
   print "Delete Map: name\n";
 }
 
+sub listMaps {
+  print "list Maps\n";
+  return my $cmd = `cat $maps`;
+}
+
 sub exportMap {
-  print "Export Map: name, UUID\n";
+  print "Export Map: UUID\n";
+  my $node = shift;
   my $map = shift;
+  my $cmd = `tar czvpf $mapspath/$node.$map.tar.gz $mapspath/$map`;
 }
 
 # GROUPS
@@ -182,13 +189,14 @@ sub writeToNodeFile {
 
 sub listNodes {
   # Parse result as nice.
-  my $result = `cat $nodes`;
+  print "List nodes \n";
+  return my $result = `cat $nodes`;
 }
 
 sub registerNode {
   my $name = shift;
   my $ip = shift;
-  my %nodehash = ('name' => $name , 'uuid' => generateUUID(), 'ip' => $ip);
+  my %nodehash = ("name" => '"'.$name.'"' , "uuid" => '"'.generateUUID().'"', "ip" => '"'.$ip.'"');
   my $jsonname = toJson(\%nodehash);
   writeToNodeFile($jsonname);
   return $jsonname;
@@ -206,7 +214,7 @@ sub writeToMapNodeFile {
 sub assignMapToNode {
   my $map = shift;
   my $node = shift;
-  my %nodehash = ('map' => $map , 'node' => $node);
+  my %nodehash = ("map" => '"'.$map.'"' , "node" => '"'.$node.'"');
   my $jsonname = toJson(\%nodehash);
   print "assign map to node: $jsonname\n";
   writeToMapNodeFile($jsonname);
@@ -218,12 +226,23 @@ sub removeMapFromNode {
 }
 
 sub getNodeMap {
-  print "get node map: node UUID\n";
-  # my $perl_scalar = from_json($json_text[, $optional_hashref])
-  my $json = ""; # read node line from mapsnodes files.
-  # parse $json to obtain Map
-  my $map = from_json($json);
-
+  my $node = shift;
+  my $line = "";
+  my $nodemap = "NONE";
+  my $nodehash = "";
+  print "get Node map from nodes file\n";
+  open(FH,'<',$mapsandnodes) || handle_error();
+  while (defined($line = <FH>)) {
+    chomp($line);
+    print $line."\n";
+    if ($line =~ /$node/) {
+      $nodehash = fromJson ($line);
+      $nodemap = $nodehash->{"map"};
+      last;
+    }
+  }
+  close(FH);
+  return $nodemap;
 }
 
 sub getMapNodes {
@@ -270,14 +289,19 @@ sub sendMapToNode {
   my $map = shift;
   my $nodeIP = getNodeIp ($node);
   # TODO This should be done by API no openRules. sendFileToNode(file,ip);
-  my $cmd = `scp $node$map.tar.gz $user@$nodeIP:/var/owlhnode/etc/$node$map.tar.gz`;
+  # my $cmd = `scp $mapspath$node.$map.tar.gz $user\@$nodeIP:/var/owlhnode/etc/$node.$map.tar.gz`;
+  my $cmd = "scp $mapspath$node.$map.tar.gz $user\@$nodeIP:/var/owlhnode/etc/$node.$map.tar.gz";
+  print $cmd."\n";
 }
 
 sub restartNode {
-  my $nodeip = shift;
+  my $node = shift;
+  my $nodeip = getNodeIp($node);
   print "restart NODE IDS\n";
   # TODO must be done from API.
-  my $cmd = `ssh $user@$nodeip "touch /var/owlhnode/etc/restartIDS"`;
+  #my $cmd = `ssh $user\@$nodeip "touch /var/owlhnode/etc/restartIDS"`;
+  my $cmd = "ssh $user\@$nodeip 'touch /var/owlhnode/etc/restartIDS'";
+  print $cmd."\n";
 }
 
 sub syncNodeMap {
@@ -289,6 +313,7 @@ sub syncNodeMap {
     sendMapToNode($node, $map);
     restartNode($node);
   }
+  return "OK";
 }
 
 # UTILS
