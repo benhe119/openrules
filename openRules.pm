@@ -48,6 +48,7 @@ sub getSrcRules {
     my $cmd = `wget $line`;
   }
   close(FH);
+  return "OK";
 }
 
 
