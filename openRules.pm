@@ -16,9 +16,9 @@ my $configPath = "config.yaml";
 
 my $mainrulespath = "rules/";
 my $mapspath = "maps/";
-my $nodes = "nodes.json";
-my $maps = "maps.json";
-my $mapsandnodes = "mapsnodes.json";
+my $nodes = "nodes.list";
+my $maps = "maps.list";
+my $mapsandnodes = "mapsnodes.list";
 
 my $action = shift;
 my $itemid = shift;
