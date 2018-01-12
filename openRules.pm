@@ -229,8 +229,9 @@ sub getNodeMap {
 
 sub getMapNodes {
   my $map = shift;
-  my $maps = "";
+  my @maps = ();
   my $line = "";
+  my $maphash = "";
   print "get map nodes: map UUID\n";
   open(FH,'<',$mapsandnodes) || handle_error();
   while (defined($line = <FH>)) {
@@ -242,7 +243,7 @@ sub getMapNodes {
     }
   }
   close(FH);
-  return $maps;
+  return @maps;
 }
 
 sub getNodeIp {
