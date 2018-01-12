@@ -235,7 +235,7 @@ sub getMapNodes {
     chomp($line);
     if $line =~ /$map/ {
       my $maphash = fromJson ($line);
-      push (@maps,%maphash->{"map"});
+      push (@maps,$maphash->{"map"});
       last;
     }
   }
