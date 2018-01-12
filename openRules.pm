@@ -19,11 +19,17 @@ my $mapspath = "maps/";
 my $nodes = "nodes.list";
 my $maps = "maps.list";
 my $mapsandnodes = "mapsnodes.list";
+my $sources = "sources.list";
+my $user = "jose";
 
 my $action = shift;
 my $itemid = shift;
 my $value = shift;
 
+
+sub handle_error {
+  print "Error, please review\n";
+}
 
 sub readConfig {
   print "read config\n";
@@ -36,83 +42,14 @@ sub readConfig {
 
 sub getSrcRules {
   print "reading Rules Set\n";
-  my $cmd = `wget https://rules.emergingthreats.net/open/suricata-4.0/emerging.rules.tar.gz`;
+  open(FH,'<',$sources) || handle_error();  # typical open call
+  while (defined($line = <FH>)) {
+    chomp($line);
+    my $cmd = `wget $line`;
+  }
+  close(FH);
 }
 
-sub main {
-  #print "hello\n";
-  readConfig();
-
-  #registerNode();
-  #toJson();
-  #print registerNode("manolo");
-  #print "rule 2100448 disabled\n";
-  #print "rule 2100448 enabled\n";
-  #ruleExists($itemid);
-  #print ruleStatus($itemid)."\n";
-
-  if (!defined $action) {
-    print "nothing to do .\n";
-    exit;
-  }
-
-  if ($action eq "STATUS") {
-    if ($itemid eq "ALL") {
-      $itemid = $mainrulespath;
-    }
-    ruleStatus($itemid, $value);
-  }
-
-  if ($action eq "DISABLE") {
-    if ($itemid eq "ALL") {
-      $itemid = $mainrulespath;
-    }
-    disableRule($itemid, $value);
-    ruleStatus($itemid, $value);
-  }
-
-  if ($action eq "ENABLE") {
-    if ($itemid eq "ALL") {
-      $itemid = $mainrulespath;
-    }
-    enableRule($itemid, $value);
-    ruleStatus($itemid, $value);
-  }
-
-  if ($action eq "CREATEMAP") {
-    createMap($itemid);
-  }
-
-  if ($action eq "LISTMAP") {
-    if ($itemid eq "ALL") {
-      $itemid = $mainrulespath;
-    }
-    listMapRules($itemid, $value);
-  }
-
-  if ($action eq "LISTNODES") {
-    print listNodes();
-  }
-
-  if ($action eq "REGISTERNODE") {
-    registerNode($itemid);
-  }
-
-  if ($action eq "SEARCHRULE") {
-    if ($itemid eq "ALL") {
-      $itemid = $mainrulespath;
-    }
-    searchRules($itemid, $value);
-  }
-
-  if ($action eq "GETSRCRULES") {
-    print "Downloading main rules\n";
-    getSrcRules();
-  }
-
-
-
-}
 
 # MAPs
 
@@ -135,7 +72,6 @@ sub deleteMap {
 sub exportMap {
   print "Export Map: name, UUID\n";
   my $map = shift;
-
 }
 
 # GROUPS
@@ -210,6 +146,7 @@ sub listMapRules {
   print "list rules: map UUID, regex\n";
   my $cmd = "cat $mapspath$map/*.rules | perl -n -e'/^#.+msg:".'\"([^\"]+)\".+sid:(\d+)/ && print "'."\$1 - \$2".'\n"'."'";
   my $result = `$cmd`;
+  # Parse result to provide a nice output
   print $result;
   return $result;
 }
@@ -224,11 +161,9 @@ sub searchRules {
   return $result;
 }
 
-# NODES
-
-sub writeToNodeFile {
-  my $node = shift;
-  my $result = `echo $node >> $nodes`;
+sub syncMap {
+  my $map = shift;
+  print "sync a map with all its nodes";
 }
 
 sub writeToMapFile {
@@ -236,13 +171,23 @@ sub writeToMapFile {
   my $result = `echo $map >> $maps`;
 }
 
+# NODES
+
+sub writeToNodeFile {
+  my $node = shift;
+  my $result = `echo $node >> $nodes`;
+}
+
+
 sub listNodes {
+  # Parse result as nice.
   my $result = `cat $nodes`;
 }
 
 sub registerNode {
   my $name = shift;
-  my %nodehash = ('name' => $name , 'uuid' => generateUUID());
+  my $ip = shift;
+  my %nodehash = ('name' => $name , 'uuid' => generateUUID(), 'ip' => $ip);
   my $jsonname = toJson(\%nodehash);
   writeToNodeFile($jsonname);
   return $jsonname;
@@ -252,8 +197,19 @@ sub removeNode {
   print "remove node: name, ip\n";
 }
 
+sub writeToMapNodeFile {
+  my $line = shift;
+  my $result = `echo $line >> $mapsandnodes`;
+}
+
 sub assignMapToNode {
-  print "assign map to node: node uuid, map uuid\n";
+  my $map = shift;
+  my $node = shift;
+  my %nodehash = ('name' => $name , 'uuid' => generateUUID());
+  my $jsonname = toJson(\%nodehash);
+  print "assign map to node: $jsonname\n";
+  writeToMapNodeFile($jsonname);
+  return $jsonname;
 }
 
 sub removeMapFromNode {
@@ -262,14 +218,55 @@ sub removeMapFromNode {
 
 sub getNodeMap {
   print "get node map: node UUID\n";
+  # my $perl_scalar = from_json($json_text[, $optional_hashref])
+  my $json = ""; # read node line from mapsnodes files.
+  # parse $json to obtain Map
+  my $map = from_json($json);
+
 }
 
 sub getMapNodes {
   print "get map nodes: map UUID\n";
+  my $nodes = ""; #read all nodes related to a MAP from mapsandnodes
+  return $nodes;
+}
+
+sub getNodeIp {
+  my $node = shift;
+  my $line = "";
+  my $nodeIP = "NONE";
+  print "get Node IP from nodes file\n";
+  open(FH,'<',$nodes) || handle_error();
+  while (defined($line = <FH>)) {
+    chomp($line);
+    if $line = /$node/ {
+      my $nodehash = fromJson ($line);
+      $nodeIP = %nodehash->{"ip"}; # parse line and optain IP
+      last;
+    }
+  }
+  close(FH);
+  return $nodeIP;
+}
+
+sub sendMapToNode {
+  print "send Map to its node\n";
+  my $node = shift;
+  my $map = shift;
+  my $nodeIp = getNodeIp ($node);
+  # TODO This should be done by API no openRules. sendFileToNode(file,ip);
+  my $cmd = `scp $node$map.tar.gz $user@$nodeIp:/var/owlhnode/etc/$node$map.tar.gz`;
 }
 
 sub syncNodeMap {
   print "sync node map: node uuid(all them if blank)\n";
+  my $node = shift;
+  my $map = getNodeMap($node);
+  if ($map != 'NONE') {
+    exportMap($node, $map);
+    sendMapToNode($node, $map);
+    restartNode($node);
+  }
 }
 
 # UTILS
@@ -288,8 +285,12 @@ sub toJson {
   return $json;
 }
 
+sub fromJson {
+  my $json = shift;
+  my $rec_hash = decode_json $json;
+  return $rec_hash;
+}
 
 
 # MAIN
-# main();
 1
