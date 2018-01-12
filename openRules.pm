@@ -52,7 +52,6 @@ sub getSrcRules {
   return "OK";
 }
 
-
 # MAPs
 
 sub createMap {
@@ -207,7 +206,7 @@ sub writeToMapNodeFile {
 sub assignMapToNode {
   my $map = shift;
   my $node = shift;
-  my %nodehash = ('name' => $name , 'uuid' => generateUUID());
+  my %nodehash = ('map' => $map , 'node' => $node);
   my $jsonname = toJson(\%nodehash);
   print "assign map to node: $jsonname\n";
   writeToMapNodeFile($jsonname);
@@ -236,8 +235,8 @@ sub getMapNodes {
   open(FH,'<',$mapsandnodes) || handle_error();
   while (defined($line = <FH>)) {
     chomp($line);
-    if $line =~ /$map/ {
-      $maphash = fromJson ($line);
+    if ($line =~ /$map/) {
+      $maphash = fromJson($line);
       push @maps,$maphash->{"map"};
       last;
     }
@@ -250,13 +249,14 @@ sub getNodeIp {
   my $node = shift;
   my $line = "";
   my $nodeIP = "NONE";
+  my $nodehash = "";
   print "get Node IP from nodes file\n";
   open(FH,'<',$nodes) || handle_error();
   while (defined($line = <FH>)) {
     chomp($line);
-    if $line =~ /$node/ {
-      my $nodehash = fromJson ($line);
-      $nodeIP = %nodehash->{"ip"};
+    if ($line =~ /$node/) {
+      $nodehash = fromJson ($line);
+      $nodeIP = $nodehash->{"ip"};
       last;
     }
   }
@@ -268,13 +268,13 @@ sub sendMapToNode {
   print "send Map to its node\n";
   my $node = shift;
   my $map = shift;
-  my $nodeIp = getNodeIp ($node);
+  my $nodeIP = getNodeIp ($node);
   # TODO This should be done by API no openRules. sendFileToNode(file,ip);
-  my $cmd = `scp $node$map.tar.gz $user@$nodeIp:/var/owlhnode/etc/$node$map.tar.gz`;
+  my $cmd = `scp $node$map.tar.gz $user@$nodeIP:/var/owlhnode/etc/$node$map.tar.gz`;
 }
 
 sub restartNode {
-  $node = shift;
+  my $nodeip = shift;
   print "restart NODE IDS\n";
   # TODO must be done from API.
   my $cmd = `ssh $user@$nodeip "touch /var/owlhnode/etc/restartIDS"`;
@@ -284,7 +284,7 @@ sub syncNodeMap {
   print "sync node map: node uuid(all them if blank)\n";
   my $node = shift;
   my $map = getNodeMap($node);
-  if ($map != 'NONE') {
+  if ($map != /NONE/) {
     exportMap($node, $map);
     sendMapToNode($node, $map);
     restartNode($node);

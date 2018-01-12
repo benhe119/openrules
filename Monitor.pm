@@ -1,4 +1,4 @@
-package monitor;
+package Monitor;
 
 use strict;
 use warnings;
